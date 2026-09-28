@@ -1,0 +1,8 @@
+# VocalScout backend dependencies (tested with Python 3.10)
+fastapi==0.141.1
+uvicorn==0.53.0
+pydantic==2.13.5
+python-dotenv==1.2.3
+requests==2.34.2
+yt-dlp==2026.8.19
+chromadb==1.5.9
