@@ -14,6 +14,10 @@ VocalScout turns any YouTube video into an AI tutor: paste a link, it downloads 
 - 🧪 **Quiz mode** — "quiz me on this" generates 3 questions with answers from the transcript
 - 🌗 **Light/dark mode**, animated UI, toasts, responsive layout
 
+## 📸 Screenshot
+
+![VocalScout in action — paste a YouTube URL, build an AI tutor, ask questions and jump to the answer](docs/screenshot.png)
+
 ## 🏗️ How it works
 
 ```

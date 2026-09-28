@@ -29,7 +29,9 @@ def ask(question: str, plan=None, video_id: str | None = None):
             style_instructions = """
 Mode: QUIZ. Test the viewer on the transcript content.
 - Write exactly 3 numbered questions based ONLY on the transcript below.
-- One line "Answer:" right after each question.
+- EVERY question MUST be immediately followed by a line in the exact format:
+  Answer: <the correct answer, stated fully>
+- Never leave an Answer line empty.
 - Do not answer the user's question directly; quiz them on the topic they asked about."""
         else:
             style_instructions = "\nStructure your answer by covering, in order: " + \
