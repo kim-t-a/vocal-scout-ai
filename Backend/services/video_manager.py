@@ -1,4 +1,5 @@
 from urllib.parse import urlparse, parse_qs
+import re
 import chromadb
 
 
@@ -9,15 +10,33 @@ class VideoManager:
     def extract_video_id(self, url: str) -> str | None:
         """Extract a YouTube video ID from common URL formats."""
 
+        if not url:
+            return None
+
+        url = url.strip()
+
+        # A raw 11-character video ID
+        if re.fullmatch(r"[a-zA-Z0-9_-]{11}", url):
+            return url
+
         parsed = urlparse(url)
+        host = (parsed.hostname or "").lower()
+        parts = [p for p in parsed.path.split("/") if p]
 
         # https://www.youtube.com/watch?v=...
-        if parsed.hostname in ("www.youtube.com", "youtube.com"):
-            return parse_qs(parsed.query).get("v", [None])[0]
+        if host in ("www.youtube.com", "youtube.com", "m.youtube.com",
+                    "music.youtube.com"):
+            video_id = parse_qs(parsed.query).get("v", [None])[0]
+            if video_id:
+                return video_id
 
-        # https://youtu.be/...
-        if parsed.hostname == "youtu.be":
-            return parsed.path.lstrip("/")
+            # https://www.youtube.com/shorts/<id>, /live/<id>, /embed/<id>
+            if len(parts) >= 2 and parts[0] in ("shorts", "live", "embed"):
+                return parts[1].split("?")[0]
+
+        # https://youtu.be/<id>
+        if host == "youtu.be" and parts:
+            return parts[0].split("?")[0]
 
         return None
 

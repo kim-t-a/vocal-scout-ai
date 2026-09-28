@@ -55,7 +55,7 @@ def process_video(data: VideoRequest, background_tasks: BackgroundTasks):
     if not video_id:
         raise HTTPException(
             status_code=400,
-            detail="Invalid YouTube URL."
+            detail="Invalid YouTube URL. Try a youtube.com/watch, youtube.com/shorts, or youtu.be link."
         )
 
     collection = video_manager.collection_name(video_id)
@@ -96,7 +96,6 @@ def process_video(data: VideoRequest, background_tasks: BackgroundTasks):
     return {
         "status": "processing",
         "video_id": video_id,
-        "collection": collection,
     }
 
 
@@ -104,7 +103,7 @@ def process_video(data: VideoRequest, background_tasks: BackgroundTasks):
 def video_status(video_id: str):
     return processing.video_status.get(
         video_id,
-        {"status": "not_found"}
+        {"status": "not_found", "detail": "No processing run found for this video."}
     )
 
 

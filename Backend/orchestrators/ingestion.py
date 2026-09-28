@@ -12,41 +12,49 @@ class IngestionOrchestrator:
 
         print("\n========== INGESTION STARTED ==========")
 
-        # Step 1 — set status BEFORE the work so the UI reflects reality
-        processing.video_status[video_id] = {"status": "downloading"}
+        try:
+            return self._run(url, video_id)
+        except ValueError as e:
+            # Friendly, user-facing errors (bad/unavailable video, etc.)
+            processing.video_status[video_id] = {
+                "status": "error",
+                "detail": str(e),
+            }
+            print(f"INGESTION FAILED: {e}")
+        except Exception as e:  # noqa: BLE001 — background task must never die silently
+            processing.video_status[video_id] = {
+                "status": "error",
+                "detail": "Something went wrong while building this tutor. Check the server logs.",
+            }
+            print(f"INGESTION CRASHED: {type(e).__name__}: {e}")
+
+        return {
+            "status": "error",
+            "video_id": video_id,
+            "detail": processing.video_status[video_id]["detail"],
+        }
+
+    def _run(self, url: str, video_id: str):
         print("Step 1/5: Downloading...")
 
+        processing.video_status[video_id] = {"status": "downloading"}
         video = download_audio(url)
 
         # Step 2
         processing.video_status[video_id] = {"status": "transcribing"}
         print("Step 2/5: Transcribing...")
-
-        transcript = transcribe_audio(
-            video["audio_path"],
-            video_id
-        )
+        transcript = transcribe_audio(video["audio_path"], video_id)
 
         # Step 3
         processing.video_status[video_id] = {"status": "chunking"}
         print("Step 3/5: Chunking...")
-
-        chunk_result = chunk_transcript(
-            transcript["transcript_path"],
-            video_id
-        )
-
+        chunk_result = chunk_transcript(transcript["transcript_path"], video_id)
         print(f"Created {len(chunk_result['chunks'])} chunks.")
 
         # Step 4
         processing.video_status[video_id] = {"status": "embedding"}
         print("Step 4/5: Embedding...")
-
-        vector_result = store_chunks(
-            chunk_result["chunks_path"],
-            video_id
-        )
-
+        vector_result = store_chunks(chunk_result["chunks_path"], video_id)
         print(
             f"Stored {vector_result['stored_chunks']} chunks "
             f"in {vector_result['collection']}."
@@ -55,7 +63,7 @@ class IngestionOrchestrator:
         # Step 5
         processing.video_status[video_id] = {
             "status": "ready",
-            "collection": vector_result["collection"]
+            "collection": vector_result["collection"],
         }
         print("Step 5/5: Finished.")
 

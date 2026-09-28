@@ -110,8 +110,13 @@ export default function App() {
             onDone?.();
             return;
           }
-          if (status.status === "not_found" || status.status === "error") {
-            onError?.("The backend stopped processing this video. Check the server logs.");
+          if (status.status === "error") {
+            onError?.(status.detail || "Something went wrong while building this tutor. Check the server logs.");
+            onDone?.();
+            return;
+          }
+          if (status.status === "not_found") {
+            onError?.("The backend has no record of this video — try again.");
             onDone?.();
             return;
           }
@@ -120,7 +125,10 @@ export default function App() {
         onError?.("Still building after 5 minutes — the video may be too long. Try again shortly.");
         onDone?.();
       } catch (err) {
-        if (err?.response?.status === 400) {
+        const detail = err?.response?.data?.detail;
+        if (detail) {
+          onError?.(detail);
+        } else if (err?.response?.status === 400) {
           onError?.("That doesn't look like a valid YouTube URL.");
         } else if (err?.response) {
           onError?.(`Backend error (${err.response.status}). Check the server logs.`);
