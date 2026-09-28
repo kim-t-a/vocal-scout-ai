@@ -32,6 +32,7 @@ class TutorEngine:
         # No video selected yet
         if video_id is None:
             return {
+                "type": "notice",
                 "answer": "Please paste a YouTube video first.",
                 "timestamp": 0,
                 "quote": ""
@@ -54,6 +55,7 @@ class TutorEngine:
             }
 
             return {
+                "type": "notice",
                 "answer": messages.get(status, "The video is still processing."),
                 "timestamp": 0,
                 "quote": ""
@@ -63,6 +65,7 @@ class TutorEngine:
         # (e.g. fresh database or someone else's video_id)
         if not self.video_manager.collection_exists(video_id):
             return {
+                "type": "notice",
                 "answer": "I haven't built a tutor for this video yet — paste its YouTube URL above to build one.",
                 "timestamp": 0,
                 "quote": ""
@@ -72,9 +75,11 @@ class TutorEngine:
         # against what was just said instead of asking for clarification
         intent = self.intent_agent.analyze(question, history=history)
 
-        # Ask for clarification if needed
+        # Ask for clarification if needed — the frontend renders this as
+        # "the tutor is asking YOU something", not as a transcript answer
         if intent.needs_clarification:
             return {
+                "type": "clarification",
                 "answer": intent.clarification_question,
                 "timestamp": 0,
                 "quote": ""

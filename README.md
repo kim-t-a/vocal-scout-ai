@@ -136,7 +136,7 @@ VITE_API_URL=https://your-backend-url
 
 | Method | Endpoint | Body / Params | Description |
 |---|---|---|---|
-| `POST` | `/ask` | `{"question": "...", "video_id": "..." (optional), "history": [{"role": "user"\|"assistant", "content": "..."}, ...] (optional)}` | Ask the active (or given) video a question. Quiz intent detected automatically; `history` enables follow-up questions. |
+| `POST` | `/ask` | `{"question": "...", "video_id": "..." (optional), "history": [{"role": "user"\|"assistant", "content": "..."}, ...] (optional)}` | Ask the active (or given) video a question. Quiz intent detected automatically; `history` enables follow-up questions. Responses carry a `type` field: `answer` (transcript-grounded, has timestamp + quote), `clarification` (the tutor needs more detail), `notice` (e.g. video still processing), or `error`. |
 | `POST` | `/process-video` | `{"url": "https://youtu.be/..."}` | Start building a tutor for a video (background). Returns `processing` or `cached`. |
 | `GET` | `/video-status/{video_id}` | — | Pipeline status: `queued / downloading / transcribing / chunking / embedding / ready / error` (+ `detail` on error) |
 | `GET` | `/current-video` | — | Server's active video |

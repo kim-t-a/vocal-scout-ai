@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { MessageCircleQuestion, Sparkles } from "lucide-react";
+import { ClipboardList, MessageCircleQuestion, Sparkles } from "lucide-react";
 
 const EXAMPLES = [
   "How do Python lists work?",
@@ -33,6 +33,20 @@ export default function EmptyState({ onPickExample }) {
       </p>
 
       <div className="mt-5 flex flex-wrap justify-center gap-2">
+        <motion.button
+          type="button"
+          onClick={() => onPickExample("__quiz__")}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.32 }}
+          whileHover={{ scale: 1.04, y: -2 }}
+          whileTap={{ scale: 0.96 }}
+          className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-emerald-300/60 dark:border-emerald-400/20 bg-emerald-50/70 dark:bg-emerald-500/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:border-emerald-400/60 hover:bg-emerald-100/70 dark:hover:bg-emerald-500/20 transition-colors"
+        >
+          <ClipboardList className="h-3 w-3" aria-hidden="true" />
+          Quiz me on this video
+        </motion.button>
+
         {EXAMPLES.map((example, i) => (
           <motion.button
             key={example}

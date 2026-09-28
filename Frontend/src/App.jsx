@@ -10,6 +10,7 @@ import VideoLoader from "./components/VideoLoader";
 import SearchBox from "./components/SearchBox";
 import LoadingCard from "./components/LoadingCard";
 import AnswerCard from "./components/AnswerCard";
+import QuizCard from "./components/QuizCard";
 import UserBubble from "./components/UserBubble";
 import EmptyState from "./components/EmptyState";
 import Toast from "./components/Toast";
@@ -189,8 +190,18 @@ export default function App() {
         const data = await askQuestion(trimmed, videoId, history);
         setMessages((prev) => [
           ...prev,
-          { id: Date.now() + 1, role: "assistant", answer: data.answer, quote: data.quote, timestamp: data.timestamp },
+          {
+            id: Date.now() + 1,
+            role: "assistant",
+            type: data.type || "answer",
+            answer: data.answer,
+            quote: data.quote,
+            timestamp: data.timestamp,
+            questions: data.questions, // quiz mode only
+          },
         ]);
+        // The tutor asked the user something — put the cursor in the box.
+        if (data.type === "clarification") searchRef.current?.focus();
       } catch (err) {
         if (err?.code === "ECONNABORTED") {
           showToast("error", "The request timed out. Try a shorter question.");
@@ -272,9 +283,18 @@ export default function App() {
           {messages.map((message) =>
             message.role === "user" ? (
               <UserBubble key={message.id} content={message.content} />
+            ) : message.type === "quiz" && message.questions ? (
+              <QuizCard
+                key={message.id}
+                questions={message.questions}
+                timestamp={message.timestamp}
+                quote={message.quote}
+                onJump={seekTo}
+              />
             ) : (
               <AnswerCard
                 key={message.id}
+                type={message.type}
                 answer={message.answer}
                 quote={message.quote}
                 timestamp={message.timestamp}
@@ -288,6 +308,10 @@ export default function App() {
           {!loading && !hasMessages && (
             <EmptyState
               onPickExample={(q) => {
+                if (q === "__quiz__") {
+                  submitQuestion("quiz me on this video");
+                  return;
+                }
                 setQuestion(q);
                 submitQuestion(q);
               }}
