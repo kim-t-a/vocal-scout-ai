@@ -74,7 +74,7 @@ Frontend/
 ### 1. Get the code
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/vocalscout.git
+git clone https://github.com/kim-t-a/vocal-scout-ai.git
 cd vocalscout
 ```
 
