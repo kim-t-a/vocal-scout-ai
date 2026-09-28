@@ -9,6 +9,7 @@ VocalScout turns any YouTube video into an AI tutor: paste a link, it downloads 
 - 🔗 **Any YouTube URL** — `watch`, `youtu.be`, `/shorts/`, `/live/`, `/embed/`, or a raw video ID
 - 🏗️ **Live build progress** — download → transcribe → chunk → embed, with per-stage status
 - 💬 **Grounded answers** — the AI answers only from the video's transcript, with a supporting quote
+- 🧵 **Chat with follow-ups** — the conversation carries context, so you can just ask *"why?"* or *"go deeper"* after any answer
 - ⏱️ **Jump to the answer** — one click seeks the player to the answer's timestamp
 - 🧠 **Adaptive explanations** — confused? Ask to "explain simply" and get a beginner-friendly breakdown
 - 🧪 **Quiz mode** — "quiz me on this" generates 3 questions with answers from the transcript
@@ -135,7 +136,7 @@ VITE_API_URL=https://your-backend-url
 
 | Method | Endpoint | Body / Params | Description |
 |---|---|---|---|
-| `POST` | `/ask` | `{"question": "...", "video_id": "..." (optional)}` | Ask the active (or given) video a question. Quiz intent detected automatically. |
+| `POST` | `/ask` | `{"question": "...", "video_id": "..." (optional), "history": [{"role": "user"\|"assistant", "content": "..."}, ...] (optional)}` | Ask the active (or given) video a question. Quiz intent detected automatically; `history` enables follow-up questions. |
 | `POST` | `/process-video` | `{"url": "https://youtu.be/..."}` | Start building a tutor for a video (background). Returns `processing` or `cached`. |
 | `GET` | `/video-status/{video_id}` | — | Pipeline status: `queued / downloading / transcribing / chunking / embedding / ready / error` (+ `detail` on error) |
 | `GET` | `/current-video` | — | Server's active video |
@@ -152,7 +153,7 @@ VITE_API_URL=https://your-backend-url
 
 - [ ] Streaming answers (SSE)
 - [ ] Persistent job queue (e.g. Celery/Redis) + user sessions
-- [ ] Chat history & follow-up questions
+- [x] ~~Chat history & follow-up questions~~ — shipped: the frontend sends recent turns with each `/ask`
 - [ ] Chapter-aware chunking using AssemblyAI `auto_chapters`
 - [ ] Deployment guide (Docker, Render/Railway + Vercel)
 

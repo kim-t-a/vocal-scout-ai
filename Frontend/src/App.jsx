@@ -10,6 +10,7 @@ import VideoLoader from "./components/VideoLoader";
 import SearchBox from "./components/SearchBox";
 import LoadingCard from "./components/LoadingCard";
 import AnswerCard from "./components/AnswerCard";
+import UserBubble from "./components/UserBubble";
 import EmptyState from "./components/EmptyState";
 import Toast from "./components/Toast";
 import Footer from "./components/Footer";
@@ -20,6 +21,9 @@ const DEFAULT_VIDEO_URL = "https://www.youtube.com/watch?v=fUo0HsrLKCk";
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
+// Conversation memory: pairs of exchanges sent to the backend as follow-up context.
+const MAX_HISTORY = 10;
+
 export default function App() {
   const [dark, setDark] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -29,8 +33,8 @@ export default function App() {
   });
 
   const [question, setQuestion] = useState("");
+  const [messages, setMessages] = useState([]); // { id, role: "user" | "assistant", ... }
   const [loading, setLoading] = useState(false);
-  const [answer, setAnswer] = useState(null);
   const [lastQuestion, setLastQuestion] = useState("");
   const [toast, setToast] = useState(null);
   const [videoId, setVideoId] = useState(() => getYouTubeId(DEFAULT_VIDEO_URL));
@@ -38,6 +42,7 @@ export default function App() {
   const playerRef = useRef(null);
   const searchRef = useRef(null);
   const toastTimer = useRef(null);
+  const messagesEndRef = useRef(null);
 
   // ---- theme -----------------------------------------------------------
   useEffect(() => {
@@ -54,6 +59,11 @@ export default function App() {
 
   useEffect(() => () => clearTimeout(toastTimer.current), []);
 
+  // ---- keep the newest message in view -----------------------------------
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, loading]);
+
   // ---- restore backend's active video on load ---------------------------
   useEffect(() => {
     let cancelled = false;
@@ -69,17 +79,28 @@ export default function App() {
     };
   }, []);
 
-  // ---- seek ------------------------------------------------------------
-  const seekTo = useCallback((ms) => {
-    const player = playerRef.current?.getInternalPlayer?.();
-    if (player && typeof player.seekTo === "function") {
-      player.seekTo((Number(ms) || 0) / 1000, true);
-      if (typeof player.playVideo === "function") player.playVideo();
-      showToast("success", `Jumped to ${formatTime(ms)}`);
-    } else {
-      showToast("error", "Player not ready yet — give it a second and try again.");
-    }
-  }, [showToast]);
+  // ---- seek (imperative handle from VideoPlayer) --------------------------
+  const seekTo = useCallback(
+    (ms) => {
+      const player = playerRef.current;
+      if (!player) {
+        showToast("error", "Player not ready yet — give it a second and try again.");
+        return;
+      }
+      if (player.isReady()) {
+        player.seekTo((Number(ms) || 0) / 1000);
+        showToast("success", `Jumped to ${formatTime(ms)}`);
+      } else {
+        // Queue the seek — it applies as soon as the player finishes loading.
+        player.seekTo((Number(ms) || 0) / 1000);
+        showToast("success", `Player is loading — will jump to ${formatTime(ms)}`);
+      }
+      document
+        .getElementById("video-section")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+    [showToast]
+  );
 
   // ---- build tutor from URL ---------------------------------------------
   const buildTutor = useCallback(
@@ -141,7 +162,7 @@ export default function App() {
     [showToast]
   );
 
-  // ---- ask -------------------------------------------------------------
+  // ---- ask ---------------------------------------------------------------
   const submitQuestion = useCallback(
     async (rawQuestion) => {
       const trimmed = rawQuestion.trim();
@@ -153,12 +174,23 @@ export default function App() {
       if (loading) return;
 
       setLoading(true);
-      setAnswer(null);
       setLastQuestion(trimmed);
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now(), role: "user", content: trimmed },
+      ]);
 
       try {
-        const data = await askQuestion(trimmed, videoId);
-        setAnswer(data);
+        // Send the last few exchanges so the tutor understands follow-ups.
+        const history = messages.slice(-MAX_HISTORY).map(({ role, content, answer }) => ({
+          role,
+          content: role === "assistant" ? answer : content,
+        }));
+        const data = await askQuestion(trimmed, videoId, history);
+        setMessages((prev) => [
+          ...prev,
+          { id: Date.now() + 1, role: "assistant", answer: data.answer, quote: data.quote, timestamp: data.timestamp },
+        ]);
       } catch (err) {
         if (err?.code === "ECONNABORTED") {
           showToast("error", "The request timed out. Try a shorter question.");
@@ -170,12 +202,33 @@ export default function App() {
       } finally {
         setLoading(false);
       }
-    },        [loading, videoId, showToast]
+    },
+    [loading, videoId, messages, showToast]
   );
 
+  // ---- regenerate the latest answer ---------------------------------------
   const regenerate = useCallback(() => {
-    if (lastQuestion) submitQuestion(lastQuestion);
-  }, [lastQuestion, submitQuestion]);
+    if (!lastQuestion || loading) return;
+    setMessages((prev) => {
+      const next = [...prev];
+      const lastAssistant = next.findLastIndex((m) => m.role === "assistant");
+      if (lastAssistant !== -1) {
+        next.splice(lastAssistant, 1);
+        const lastUser = next.findLastIndex((m) => m.role === "user");
+        if (lastUser !== -1) next.splice(lastUser, 1);
+      }
+      return next;
+    });
+    submitQuestion(lastQuestion);
+  }, [lastQuestion, loading, submitQuestion]);
+
+  // New video = new conversation.
+  const startNewChat = useCallback(() => {
+    setMessages([]);
+    setLastQuestion("");
+  }, []);
+
+  const hasMessages = messages.length > 0;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -185,10 +238,12 @@ export default function App() {
       <main className="flex-1">
         <Hero onCtaClick={() => searchRef.current?.focus()} />
 
-        <VideoPlayer ref={playerRef} videoId={videoId} />
+        <div id="video-section" className="scroll-mt-20">
+          <VideoPlayer ref={playerRef} videoId={videoId} />
+        </div>
 
         <div className="mt-8 sm:mt-10">
-          <VideoLoader onReady={buildTutor} />
+          <VideoLoader onReady={buildTutor} onVideoBuilt={startNewChat} />
         </div>
 
         <div className="mt-8 sm:mt-10">
@@ -202,19 +257,35 @@ export default function App() {
         </div>
 
         <div className="mt-8 space-y-6 pb-16">
-          {loading && <LoadingCard />}
-
-          {!loading && answer && (
-            <AnswerCard
-              answer={answer.answer}
-              quote={answer.quote}
-              timestamp={answer.timestamp}
-              onJump={seekTo}
-              onRegenerate={regenerate}
-            />
+          {hasMessages && (
+            <div className="mx-auto flex w-full max-w-3xl justify-end">
+              <button
+                type="button"
+                onClick={startNewChat}
+                className="focus-ring rounded-full border border-slate-200 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3.5 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 hover:border-primary/40 hover:text-primary dark:hover:text-primary-soft transition-colors"
+              >
+                New conversation
+              </button>
+            </div>
           )}
 
-          {!loading && !answer && (
+          {messages.map((message) =>
+            message.role === "user" ? (
+              <UserBubble key={message.id} content={message.content} />
+            ) : (
+              <AnswerCard
+                key={message.id}
+                answer={message.answer}
+                quote={message.quote}
+                timestamp={message.timestamp}
+                onJump={seekTo}
+              />
+            )
+          )}
+
+          {loading && <LoadingCard />}
+
+          {!loading && !hasMessages && (
             <EmptyState
               onPickExample={(q) => {
                 setQuestion(q);
@@ -222,6 +293,8 @@ export default function App() {
               }}
             />
           )}
+
+          <div ref={messagesEndRef} />
         </div>
       </main>
 

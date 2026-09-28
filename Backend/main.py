@@ -32,6 +32,9 @@ app.add_middleware(
 class Question(BaseModel):
     question: str
     video_id: str | None = None
+    # Recent conversation so follow-up questions ("why?", "and for tuples?")
+    # can be understood. Each item: {"role": "user"|"assistant", "content": str}
+    history: list[dict] | None = None
 
 
 class VideoRequest(BaseModel):
@@ -45,7 +48,7 @@ def home():
 
 @app.post("/ask")
 def ask_question(data: Question):
-    return engine.run(data.question, data.video_id)
+    return engine.run(data.question, data.video_id, data.history)
 
 
 @app.post("/process-video")

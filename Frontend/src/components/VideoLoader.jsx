@@ -18,7 +18,7 @@ const STAGE_ORDER = ["queued", "downloading", "transcribing", "chunking", "embed
  * video, show live stage progress. onReady fires with the videoId so the
  * parent can swap the player.
  */
-export default function VideoLoader({ onReady, disabled }) {
+export default function VideoLoader({ onReady, onVideoBuilt, disabled }) {
   const [url, setUrl] = useState("");
   const [building, setBuilding] = useState(false);
   const [stage, setStage] = useState(null);
@@ -30,6 +30,8 @@ export default function VideoLoader({ onReady, disabled }) {
     setBuilding(true);
     setError(null);
     setStage(null);
+    // New video -> new conversation: reset the chat before building.
+    onVideoBuilt?.();
     onReady({ url: url.trim(), setStage, onError: setError, onDone: () => setBuilding(false) });
   };
 

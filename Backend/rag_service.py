@@ -4,7 +4,38 @@ from services.chat import generate_answer
 import session
 
 
-def ask(question: str, plan=None, video_id: str | None = None):
+HISTORY_TURNS = 5          # conversation exchanges sent to the model
+HISTORY_CHAR_BUDGET = 2000  # rough cap so history can't crowd out the transcript
+
+
+def build_history_block(history: list[dict] | None) -> str:
+    """Render the recent conversation for the prompt, newest last."""
+
+    turns = [
+        h for h in (history or [])
+        if isinstance(h, dict)
+        and h.get("role") in ("user", "assistant")
+        and isinstance(h.get("content"), str)
+        and h.get("content").strip()
+    ][-HISTORY_TURNS:]
+
+    if not turns:
+        return ""
+
+    lines = []
+    budget = HISTORY_CHAR_BUDGET
+    for turn in reversed(turns):  # keep the newest turns if over budget
+        label = "Viewer" if turn["role"] == "user" else "Tutor"
+        line = f"{label}: {turn['content'].strip()}"
+        if len(line) > budget:
+            break
+        budget -= len(line)
+        lines.append(line)
+
+    return "Earlier in this conversation (newest last):\n" + "\n".join(reversed(lines))
+
+
+def ask(question: str, plan=None, video_id: str | None = None, history: list[dict] | None = None):
     if video_id is None:
         video_id = session.ACTIVE_VIDEO_ID
 
@@ -41,7 +72,7 @@ Mode: QUIZ. Test the viewer on the transcript content.
 You are VocalScout, a friendly AI tutor.
 
 Answer ONLY using the transcript below.
-
+{build_history_block(history)}
 Transcript:
 {retrieved["context"]}
 

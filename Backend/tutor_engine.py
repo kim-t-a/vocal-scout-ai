@@ -14,11 +14,20 @@ class TutorEngine:
         self.planner_agent = PlannerAgent()
         self.video_manager = VideoManager()
 
-    def run(self, question: str, video_id: str | None = None):
+    def run(self, question: str, video_id: str | None = None, history: list[dict] | None = None):
 
         # Per-request video wins; otherwise fall back to the session default
         if video_id is None:
             video_id = session.ACTIVE_VIDEO_ID
+
+        # Keep only the last few exchanges and drop malformed entries
+        history = [
+            h for h in (history or [])
+            if isinstance(h, dict)
+            and h.get("role") in ("user", "assistant")
+            and isinstance(h.get("content"), str)
+            and h.get("content").strip()
+        ][-5:]
 
         # No video selected yet
         if video_id is None:
@@ -59,8 +68,9 @@ class TutorEngine:
                 "quote": ""
             }
 
-        # Intent Agent
-        intent = self.intent_agent.analyze(question)
+        # Intent Agent — history lets short follow-ups like "why?" resolve
+        # against what was just said instead of asking for clarification
+        intent = self.intent_agent.analyze(question, history=history)
 
         # Ask for clarification if needed
         if intent.needs_clarification:
@@ -76,5 +86,5 @@ class TutorEngine:
             intent.difficulty
         )
 
-        # Retrieve and generate answer using the plan
-        return ask(question, plan, video_id)
+        # Retrieve and generate answer using the plan and conversation context
+        return ask(question, plan, video_id, history=history)
