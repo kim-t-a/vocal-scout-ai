@@ -6,6 +6,7 @@ from tutor_engine import TutorEngine
 from services.video_manager import VideoManager
 from orchestrators.ingestion import IngestionOrchestrator
 
+import os
 import session
 import processing
 
@@ -15,13 +16,14 @@ engine = TutorEngine()
 video_manager = VideoManager()
 ingestion = IngestionOrchestrator()
 
-# Allow React (Vite) to call the backend
+# CORS: dev servers often change ports (5173 -> 5174, preview, LAN testing).
+# Default to allowing any origin locally; lock down with CORS_ORIGINS in prod,
+# e.g. CORS_ORIGINS="https://myapp.com,https://www.myapp.com"
+_origins = os.getenv("CORS_ORIGINS")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=[o.strip() for o in _origins.split(",") if o.strip()]
+        if _origins else ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
