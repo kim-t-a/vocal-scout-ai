@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply font-sans antialiased bg-surface-light text-slate-800 transition-colors duration-300;
+  }
+  .dark body {
+    @apply bg-surface-dark text-slate-200;
+  }
+  ::selection {
+    @apply bg-primary/20;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/60 dark:border-white/10 shadow-xl shadow-slate-900/5 dark:shadow-black/30;
+  }
+  .btn-gradient {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold text-white bg-gradient-to-r from-primary to-primary-blue shadow-lg shadow-primary/30 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-surface-dark;
+  }
+  .btn-gradient:hover {
+    @apply shadow-xl shadow-primary/40;
+  }
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-surface-dark;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary-soft to-primary-blue;
+  }
+  /* thin, unobtrusive scrollbars */
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+  }
+}

@@ -1,0 +1,22 @@
+# --- Secrets ---
+.env
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# --- Node ---
+node_modules/
+Frontend/dist/
+
+# --- Build artifacts / local databases (large, regenerable) ---
+Backend/chroma_db/
+Backend/chunks/
+Backend/transcripts/
+videos/
+
+# --- Freebuff local state ---
+.freebuff/
