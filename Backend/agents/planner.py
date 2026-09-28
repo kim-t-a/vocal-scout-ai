@@ -11,6 +11,16 @@ class LessonPlan:
 class PlannerAgent:
     def create_plan(self, intent: str, difficulty: str) -> LessonPlan:
 
+        if intent == "quiz":
+            return LessonPlan(
+                strategy="quiz",
+                order=[
+                    "3 numbered quiz questions",
+                    "correct answer after each question",
+                ],
+                include_quiz=True,
+            )
+
         if intent == "compare":
             return LessonPlan(
                 strategy="comparison_table",

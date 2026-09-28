@@ -149,7 +149,7 @@ export default function App() {
       setLastQuestion(trimmed);
 
       try {
-        const data = await askQuestion(trimmed);
+        const data = await askQuestion(trimmed, videoId);
         setAnswer(data);
       } catch (err) {
         if (err?.code === "ECONNABORTED") {
@@ -162,8 +162,7 @@ export default function App() {
       } finally {
         setLoading(false);
       }
-    },
-    [loading, showToast]
+    },        [loading, videoId, showToast]
   );
 
   const regenerate = useCallback(() => {

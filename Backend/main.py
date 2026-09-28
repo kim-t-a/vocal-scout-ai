@@ -29,6 +29,7 @@ app.add_middleware(
 
 class Question(BaseModel):
     question: str
+    video_id: str | None = None
 
 
 class VideoRequest(BaseModel):
@@ -42,7 +43,7 @@ def home():
 
 @app.post("/ask")
 def ask_question(data: Question):
-    return engine.run(data.question)
+    return engine.run(data.question, data.video_id)
 
 
 @app.post("/process-video")

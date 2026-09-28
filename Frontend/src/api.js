@@ -3,10 +3,10 @@ import axios from "axios";
 // Backend base URL. Override with VITE_API_URL in a .env file if needed.
 const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
-export const askQuestion = async (question) => {
+export const askQuestion = async (question, videoId) => {
   const { data } = await axios.post(
     `${API_BASE}/ask`,
-    { question },
+    { question, video_id: videoId },
     { timeout: 45000 }
   );
   return data;

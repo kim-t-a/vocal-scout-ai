@@ -4,8 +4,11 @@ from services.chat import generate_answer
 import session
 
 
-def ask(question: str, plan=None):
-    if session.ACTIVE_VIDEO_ID is None:
+def ask(question: str, plan=None, video_id: str | None = None):
+    if video_id is None:
+        video_id = session.ACTIVE_VIDEO_ID
+
+    if video_id is None:
         return {
             "answer": "Please process a YouTube video first.",
             "timestamp": 0,
@@ -16,14 +19,21 @@ def ask(question: str, plan=None):
 
     retrieved = search_chunks(
         query_embedding,
-        session.ACTIVE_VIDEO_ID
+        video_id
     )
 
     # Shape the answer with the planner's lesson plan when available
     style_instructions = ""
     if plan is not None:
-        style_instructions = "\nStructure your answer by covering, in order: " + \
-            ", ".join(plan.order) + "."
+        if plan.strategy == "quiz":
+            style_instructions = """
+Mode: QUIZ. Test the viewer on the transcript content.
+- Write exactly 3 numbered questions based ONLY on the transcript below.
+- One line "Answer:" right after each question.
+- Do not answer the user's question directly; quiz them on the topic they asked about."""
+        else:
+            style_instructions = "\nStructure your answer by covering, in order: " + \
+                ", ".join(plan.order) + "."
 
     prompt = f"""
 You are VocalScout, a friendly AI tutor.
@@ -44,7 +54,7 @@ Question:
         answer = "The AI tutor is temporarily busy."
 
     return {
-    "answer": answer,
-    "timestamp": retrieved["timestamp"],           # Milliseconds (frontend expects ms)
-    "quote": retrieved["quote"],
-}
+        "answer": answer,
+        "timestamp": retrieved["timestamp"],           # Milliseconds (frontend expects ms)
+        "quote": retrieved["quote"],
+    }

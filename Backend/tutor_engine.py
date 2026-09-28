@@ -4,6 +4,7 @@ import session
 from agents.intent import IntentAgent
 from agents.planner import PlannerAgent
 from rag_service import ask
+from services.video_manager import VideoManager
 
 
 class TutorEngine:
@@ -11,11 +12,16 @@ class TutorEngine:
     def __init__(self):
         self.intent_agent = IntentAgent()
         self.planner_agent = PlannerAgent()
+        self.video_manager = VideoManager()
 
-    def run(self, question: str):
+    def run(self, question: str, video_id: str | None = None):
+
+        # Per-request video wins; otherwise fall back to the session default
+        if video_id is None:
+            video_id = session.ACTIVE_VIDEO_ID
 
         # No video selected yet
-        if session.ACTIVE_VIDEO_ID is None:
+        if video_id is None:
             return {
                 "answer": "Please paste a YouTube video first.",
                 "timestamp": 0,
@@ -23,7 +29,7 @@ class TutorEngine:
             }
 
         status = processing.video_status.get(
-            session.ACTIVE_VIDEO_ID,
+            video_id,
             {"status": "ready"}
         )["status"]
 
@@ -40,6 +46,15 @@ class TutorEngine:
 
             return {
                 "answer": messages.get(status, "The video is still processing."),
+                "timestamp": 0,
+                "quote": ""
+            }
+
+        # Guard: status says ready but the index is missing
+        # (e.g. fresh database or someone else's video_id)
+        if not self.video_manager.collection_exists(video_id):
+            return {
+                "answer": "I haven't built a tutor for this video yet — paste its YouTube URL above to build one.",
                 "timestamp": 0,
                 "quote": ""
             }
@@ -62,4 +77,4 @@ class TutorEngine:
         )
 
         # Retrieve and generate answer using the plan
-        return ask(question, plan)
+        return ask(question, plan, video_id)
