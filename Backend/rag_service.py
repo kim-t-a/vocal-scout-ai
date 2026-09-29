@@ -1,3 +1,4 @@
+import json
 import re
 
 from services.embeddings import get_embedding
@@ -9,58 +10,89 @@ import session
 HISTORY_TURNS = 5          # conversation exchanges sent to the model
 HISTORY_CHAR_BUDGET = 2000  # rough cap so history can't crowd out the transcript
 
+# Best chunk's cosine similarity must clear this, else the question is
+# treated as off-topic for the video. Conservative: better to admit "not
+# covered" than to confidently hallucinate from weak context.
+OFF_TOPIC_THRESHOLD = 0.35
 
-def parse_quiz(text: str):
+
+def parse_quiz_json(text: str):
     """
-    Parse the model's quiz text into structured questions.
+    Parse the model's quiz output into structured multiple-choice questions.
 
-    Expects pairs like:
-        1. What is a list?
-        Answer: An ordered, mutable collection of items.
-
-    Tolerates markdown bolding ("**1. Question**", "**Answer:** ...") and
-    multi-line questions/answers. Returns a list of
-    {"question": str, "answer": str}, or None when nothing usable parses
-    (caller falls back to showing the raw text as a plain answer).
+    The prompt demands a bare JSON array, but models occasionally wrap it in
+    markdown fences or prose — so extract the first JSON array substring,
+    then validate the shape strictly. Returns a list of
+    {"question": str, "options": [4 strings], "answer_index": int}
+    or None when nothing usable parses (caller falls back to plain text).
     """
+
+    start = text.find("[")
+    end = text.rfind("]")
+    if start == -1 or end <= start:
+        return None
+
+    try:
+        data = json.loads(text[start:end + 1])
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+    if not isinstance(data, list):
+        return None
 
     questions = []
-    current = None
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        question = item.get("question")
+        options = item.get("options")
+        index = item.get("answer_index")
 
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
+        if not isinstance(question, str) or not question.strip():
+            continue
+        if (
+            not isinstance(options, list)
+            or len(options) < 2
+            or not all(isinstance(o, str) and o.strip() for o in options)
+        ):
+            continue
+        if not isinstance(index, int) or not 0 <= index < len(options):
             continue
 
-        answer_match = re.match(
-            r"^\*{0,2}answer\*{0,2}\s*[:\-]\s*(.+)$", line, re.IGNORECASE
-        )
-        if answer_match and current is not None:
-            current["answer"] = (current.get("answer") or "") + answer_match.group(1).strip().rstrip("*").strip()
-            questions.append(current)
-            current = None
-            continue
-
-        question_match = re.match(
-            r"^\*{0,2}(?:question\s*)?\d{1,2}[\.\)]\s*(.+?)\*{0,2}$", line
-        )
-        if question_match:
-            current = {"question": question_match.group(1).strip(), "answer": None}
-            continue
-
-        # Continuation of the previous question or answer line
-        if current is not None:
-            if current.get("answer") is None:
-                current["question"] += " " + line
-            else:
-                current["answer"] += " " + line
-
-    if current is not None:
-        questions.append(current)  # unanswered trailing question -> filtered below
-
-    questions = [q for q in questions if q["question"] and q.get("answer")]
+        questions.append({
+            "question": question.strip(),
+            "options": [o.strip() for o in options],
+            "answer_index": index,
+        })
 
     return questions or None
+
+
+def build_suggestions(answer: str) -> list[str]:
+    """
+    Clickable follow-up questions shown under the latest answer.
+
+    Deterministic, template-based — cheap and never wrong. Draw from the
+    answer text itself where possible so the suggestions feel relevant.
+    """
+
+    words = re.findall(r"[a-zA-Z']{4,}", answer.lower())
+    stop = {
+        "this", "that", "with", "from", "have", "what", "when", "your",
+        "about", "which", "there", "their", "would", "could", "should",
+        "these", "those", "because", "video", "transcript", "answer",
+    }
+    keywords = [w for w in words if w not in stop]
+
+    # Longest keywords first — they tend to be the most specific/meaningful.
+    keyword = keywords[0] if keywords else "this topic"
+    seen = set()
+    suggestions = [
+        f"Explain {keyword} more simply",
+        f"Give me an example of {keyword}",
+        f"Quiz me on {keyword}",
+    ]
+    return [s for s in suggestions if not (s in seen or seen.add(s))]
 
 
 def build_history_block(history: list[dict] | None) -> str:
@@ -109,16 +141,34 @@ def ask(question: str, plan=None, video_id: str | None = None, history: list[dic
         video_id
     )
 
+    # Off-topic guard: the best chunk doesn't resemble the question closely
+    # enough for this video to plausibly contain an answer. score is None for
+    # legacy l2 collections — skip the check rather than guess.
+    score = retrieved.get("score")
+    if score is not None and score < OFF_TOPIC_THRESHOLD:
+        return {
+            "type": "notice",
+            "answer": (
+                "That doesn't seem to be covered in this video. "
+                "Try asking about something the video explains."
+            ),
+            "timestamp": 0,
+            "quote": ""
+        }
+
     # Shape the answer with the planner's lesson plan when available
     style_instructions = ""
     if plan is not None:
         if plan.strategy == "quiz":
             style_instructions = """
 Mode: QUIZ. Test the viewer on the transcript content.
-- Write exactly 3 numbered questions based ONLY on the transcript below.
-- EVERY question MUST be immediately followed by a line in the exact format:
-  Answer: <the correct answer, stated fully>
-- Never leave an Answer line empty.
+- Respond with ONLY a JSON array — no prose before or after, no markdown fences.
+- Write exactly 3 multiple-choice questions based ONLY on the transcript below.
+- Exact JSON shape:
+  [{"question": "...", "options": ["...", "...", "...", "..."], "answer_index": 0}]
+- "answer_index" is the 0-based index of the correct option.
+- Exactly 4 options per question; exactly one correct.
+- Distractors must be plausible but clearly wrong to someone who watched.
 - Do not answer the user's question directly; quiz them on the topic they asked about."""
         else:
             style_instructions = "\nStructure your answer by covering, in order: " + \
@@ -147,15 +197,16 @@ Question:
             "quote": ""
         }
 
-    # Quiz mode: try to hand the frontend structured questions it can render
-    # as an interactive quiz. Fall back to plain text if parsing fails.
+    # Quiz mode: the model returns strict JSON which we validate and hand to
+    # the frontend as structured multiple-choice questions. If parsing fails
+    # we fall back to showing the raw text as a plain answer.
     if plan is not None and plan.strategy == "quiz":
-        questions = parse_quiz(answer)
+        questions = parse_quiz_json(answer)
         if questions:
             return {
                 "type": "quiz",
-                "questions": questions,
-                "answer": answer,  # raw text, kept for history / fallback
+                "questions": questions,  # {question, options[4], answer_index}
+                "answer": answer,        # raw text, kept for history / fallback
                 "timestamp": retrieved["timestamp"],
                 "quote": retrieved["quote"],
             }
@@ -165,4 +216,5 @@ Question:
         "answer": answer,
         "timestamp": retrieved["timestamp"],           # Milliseconds (frontend expects ms)
         "quote": retrieved["quote"],
+        "suggestions": build_suggestions(answer),
     }

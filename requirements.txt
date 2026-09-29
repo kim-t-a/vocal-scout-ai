@@ -6,3 +6,4 @@ python-dotenv==1.2.3
 requests==2.34.2
 yt-dlp==2026.8.19
 chromadb==1.5.9
+slowapi==0.1.9

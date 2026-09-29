@@ -1,7 +1,7 @@
 from ingest import download_audio
 from services.transcriber import transcribe_audio
 from services.chunker import chunk_transcript
-from services.vector_store import store_chunks
+from services.vector_store import store_chunks, delete_collection
 
 import processing
 
@@ -27,6 +27,18 @@ class IngestionOrchestrator:
                 "detail": "Something went wrong while building this tutor. Check the server logs.",
             }
             print(f"INGESTION CRASHED: {type(e).__name__}: {e}")
+        finally:
+            # Any failure after storage began can leave a PARTIAL collection
+            # behind — /process-video would then report it as "cached" forever
+            # and serve an incomplete tutor. Remove it so the next attempt
+            # starts clean. On success _run has already returned, so the
+            # status check below distinguishes the two cases.
+            if processing.video_status.get(video_id, {}).get("status") == "error":
+                try:
+                    delete_collection(video_id)
+                    print(f"Deleted partial collection for {video_id}.")
+                except Exception as cleanup_error:  # noqa: BLE001
+                    print(f"Could not delete partial collection: {cleanup_error}")
 
         return {
             "status": "error",

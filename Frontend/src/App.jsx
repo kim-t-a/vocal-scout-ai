@@ -11,6 +11,7 @@ import SearchBox from "./components/SearchBox";
 import LoadingCard from "./components/LoadingCard";
 import AnswerCard from "./components/AnswerCard";
 import QuizCard from "./components/QuizCard";
+import SuggestionChips from "./components/SuggestionChips";
 import UserBubble from "./components/UserBubble";
 import EmptyState from "./components/EmptyState";
 import Toast from "./components/Toast";
@@ -198,6 +199,7 @@ export default function App() {
             quote: data.quote,
             timestamp: data.timestamp,
             questions: data.questions, // quiz mode only
+            suggestions: data.suggestions, // follow-up chips (answer mode)
           },
         ]);
         // The tutor asked the user something — put the cursor in the box.
@@ -232,6 +234,15 @@ export default function App() {
     });
     submitQuestion(lastQuestion);
   }, [lastQuestion, loading, submitQuestion]);
+
+  // Clicking a follow-up chip asks that question immediately.
+  const handleSuggestionPick = useCallback(
+    (suggestion) => {
+      if (loading) return;
+      submitQuestion(suggestion);
+    },
+    [loading, submitQuestion]
+  );
 
   // New video = new conversation.
   const startNewChat = useCallback(() => {
@@ -299,9 +310,21 @@ export default function App() {
                 quote={message.quote}
                 timestamp={message.timestamp}
                 onJump={seekTo}
+                onRegenerate={regenerate}
               />
             )
           )}
+
+          {/* Follow-up chips under the newest assistant answer only */}
+          {!loading &&
+            messages.length > 0 &&
+            messages[messages.length - 1].role === "assistant" &&
+            messages[messages.length - 1].type === "answer" && (
+              <SuggestionChips
+                suggestions={messages[messages.length - 1].suggestions}
+                onPick={handleSuggestionPick}
+              />
+            )}
 
           {loading && <LoadingCard />}
 

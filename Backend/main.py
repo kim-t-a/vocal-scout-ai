@@ -1,6 +1,9 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from tutor_engine import TutorEngine
 from services.video_manager import VideoManager
@@ -11,6 +14,12 @@ import session
 import processing
 
 app = FastAPI()
+
+# Rate limiting — the pipeline calls paid APIs (AssemblyAI, NVIDIA), so one
+# noisy client could drain the quota. Limits are per client IP.
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 engine = TutorEngine()
 video_manager = VideoManager()
@@ -47,12 +56,14 @@ def home():
 
 
 @app.post("/ask")
-def ask_question(data: Question):
+@limiter.limit("30/minute")
+def ask_question(request: Request, data: Question):
     return engine.run(data.question, data.video_id, data.history)
 
 
 @app.post("/process-video")
-def process_video(data: VideoRequest, background_tasks: BackgroundTasks):
+@limiter.limit("10/hour")
+def process_video(request: Request, data: VideoRequest, background_tasks: BackgroundTasks):
 
     # Extract YouTube ID
     video_id = video_manager.extract_video_id(data.url)
