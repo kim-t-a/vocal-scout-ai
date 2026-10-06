@@ -3,8 +3,19 @@ import session
 
 from agents.intent import IntentAgent
 from agents.planner import PlannerAgent
-from rag_service import ask
+from rag_service import ask, ask_stream
 from services.video_manager import VideoManager
+
+
+def _notice(answer: str) -> dict:
+    """A response that never reaches the model (nothing to answer yet)."""
+
+    return {
+        "type": "notice",
+        "answer": answer,
+        "timestamp": 0,
+        "quote": ""
+    }
 
 
 class TutorEngine:
@@ -14,7 +25,14 @@ class TutorEngine:
         self.planner_agent = PlannerAgent()
         self.video_manager = VideoManager()
 
-    def run(self, question: str, video_id: str | None = None, history: list[dict] | None = None):
+    def _resolve(self, question: str, video_id: str | None = None, history: list[dict] | None = None, quiz_count: int | None = None):
+        """
+        Front half shared by run() and run_stream(): pick the video, make sure
+        its tutor is built, read the intent and draw up a lesson plan.
+
+        Returns (early, video_id, history, plan). `early` is a finished response
+        dict when the question can't reach the model yet; otherwise None.
+        """
 
         # Per-request video wins; otherwise fall back to the session default
         if video_id is None:
@@ -31,12 +49,7 @@ class TutorEngine:
 
         # No video selected yet
         if video_id is None:
-            return {
-                "type": "notice",
-                "answer": "Please paste a YouTube video first.",
-                "timestamp": 0,
-                "quote": ""
-            }
+            return _notice("Please paste a YouTube video first."), video_id, history, None
 
         status = processing.video_status.get(
             video_id,
@@ -54,22 +67,22 @@ class TutorEngine:
                 "embedding": "I'm building the searchable AI tutor.",
             }
 
-            return {
-                "type": "notice",
-                "answer": messages.get(status, "The video is still processing."),
-                "timestamp": 0,
-                "quote": ""
-            }
+            return (
+                _notice(messages.get(status, "The video is still processing.")),
+                video_id,
+                history,
+                None,
+            )
 
         # Guard: status says ready but the index is missing
         # (e.g. fresh database or someone else's video_id)
         if not self.video_manager.collection_exists(video_id):
-            return {
-                "type": "notice",
-                "answer": "I haven't built a tutor for this video yet — paste its YouTube URL above to build one.",
-                "timestamp": 0,
-                "quote": ""
-            }
+            return (
+                _notice("I haven't built a tutor for this video yet — paste its YouTube URL above to build one."),
+                video_id,
+                history,
+                None,
+            )
 
         # Intent Agent — history lets short follow-ups like "why?" resolve
         # against what was just said instead of asking for clarification
@@ -78,18 +91,53 @@ class TutorEngine:
         # Ask for clarification if needed — the frontend renders this as
         # "the tutor is asking YOU something", not as a transcript answer
         if intent.needs_clarification:
-            return {
-                "type": "clarification",
-                "answer": intent.clarification_question,
-                "timestamp": 0,
-                "quote": ""
-            }
+            return (
+                {
+                    "type": "clarification",
+                    "answer": intent.clarification_question,
+                    "timestamp": 0,
+                    "quote": ""
+                },
+                video_id,
+                history,
+                None,
+            )
 
         # Planner Agent
         plan = self.planner_agent.create_plan(
             intent.intent,
-            intent.difficulty
+            intent.difficulty,
+            quiz_count=quiz_count,
         )
 
-        # Retrieve and generate answer using the plan and conversation context
+        return None, video_id, history, plan
+
+
+    def run(self, question: str, video_id: str | None = None, history: list[dict] | None = None, quiz_count: int | None = None):
+        """Answer a question in one shot (used by POST /ask)."""
+
+        early, video_id, history, plan = self._resolve(question, video_id, history, quiz_count)
+
+        if early is not None:
+            return early
+
+        # Retrieve and generate the answer using the plan and conversation context
         return ask(question, plan, video_id, history=history)
+
+
+    def run_stream(self, question: str, video_id: str | None = None, history: list[dict] | None = None, quiz_count: int | None = None):
+        """
+        Answer a question as it is written (used by POST /ask-stream).
+
+        Yields the same events as `rag_service.ask_stream`. The guard responses
+        (no video, still building, needs clarification) arrive as one event
+        instead of a stream of tokens.
+        """
+
+        early, video_id, history, plan = self._resolve(question, video_id, history, quiz_count)
+
+        if early is not None:
+            yield early
+            return
+
+        yield from ask_stream(question, plan, video_id, history=history)

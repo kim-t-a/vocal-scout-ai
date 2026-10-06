@@ -1,0 +1,622 @@
+{
+  "_meta": {
+    "generated_at": "2026-10-01T13:25:54+00:00",
+    "note": "MACHINE-GENERATED — review, edit, then save as golden_set.json. run_eval.py reads golden_set.json only. Expected chunks for scope:'in' questions derive from chapter_index at runtime."
+  },
+  "videos": [
+    {
+      "video_id": "XQNv0SRB0OM",
+      "name": "Docker crash course (~50 min)",
+      "questions": [
+        {
+          "question": "What is Docker described as for programmers, data scientists, and machine learning engineers?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 0,
+          "_chapter_headline": "This video is a complete Docker crash course for beginners"
+        },
+        {
+          "question": "Why is Docker important for deploying applications?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 0,
+          "_chapter_headline": "This video is a complete Docker crash course for beginners"
+        },
+        {
+          "question": "What is the difference between a container and a virtual machine?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 0,
+          "_chapter_headline": "This video is a complete Docker crash course for beginners"
+        },
+        {
+          "question": "How does Docker facilitate deployment of applications?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 0,
+          "_chapter_headline": "This video is a complete Docker crash course for beginners"
+        },
+        {
+          "question": "What is the goal of this crash course?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 1,
+          "_chapter_headline": "This video is more of a jumpstart crash course to learn Docker"
+        },
+        {
+          "question": "What makes this video suitable for a Docker beginner?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 1,
+          "_chapter_headline": "This video is more of a jumpstart crash course to learn Docker"
+        },
+        {
+          "question": "What will you learn about Docker Desktop?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 1,
+          "_chapter_headline": "This video is more of a jumpstart crash course to learn Docker"
+        },
+        {
+          "question": "How does the course structure its Docker instruction?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 1,
+          "_chapter_headline": "This video is more of a jumpstart crash course to learn Docker"
+        },
+        {
+          "question": "What is Docker?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 2,
+          "_chapter_headline": "Docker is an open source platform for containerization of applications"
+        },
+        {
+          "question": "What does Docker provide for running applications?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 2,
+          "_chapter_headline": "Docker is an open source platform for containerization of applications"
+        },
+        {
+          "question": "What does a container include?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 2,
+          "_chapter_headline": "Docker is an open source platform for containerization of applications"
+        },
+        {
+          "question": "Why choose Docker over a virtual machine?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 2,
+          "_chapter_headline": "Docker is an open source platform for containerization of applications"
+        },
+        {
+          "question": "What are the two ways to install Docker on your desktop operating system?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 3,
+          "_chapter_headline": "There are two ways to install Docker on your desktop operating system"
+        },
+        {
+          "question": "How many installation methods for Docker on a desktop OS are mentioned?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 3,
+          "_chapter_headline": "There are two ways to install Docker on your desktop operating system"
+        },
+        {
+          "question": "Which command installs the downloaded DEB package on Ubuntu?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 3,
+          "_chapter_headline": "There are two ways to install Docker on your desktop operating system"
+        },
+        {
+          "question": "Why is it necessary to install both Docker Desktop and the Docker command line for server deployment?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 3,
+          "_chapter_headline": "There are two ways to install Docker on your desktop operating system"
+        },
+        {
+          "question": "What image is the Python 3.12 slim image based on?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 4,
+          "_chapter_headline": "Python 3.12 slim image is based on Debian 12 slim image"
+        },
+        {
+          "question": "Which Debian version serves as the foundation for the slim variant of Python 3.12 in Docker?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 4,
+          "_chapter_headline": "Python 3.12 slim image is based on Debian 12 slim image"
+        },
+        {
+          "question": "What does the term layers mean for the Python 3.12 slim image?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 4,
+          "_chapter_headline": "Python 3.12 slim image is based on Debian 12 slim image"
+        },
+        {
+          "question": "Why does the Python 3.12 slim image use Debian 12 slim as its base?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 4,
+          "_chapter_headline": "Python 3.12 slim image is based on Debian 12 slim image"
+        },
+        {
+          "question": "What does Docker PS show by default?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 5,
+          "_chapter_headline": "We can do Docker ps to show only running containers. So that's also important to understand"
+        },
+        {
+          "question": "Which command lists only the containers that are currently running?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 5,
+          "_chapter_headline": "We can do Docker ps to show only running containers. So that's also important to understand"
+        },
+        {
+          "question": "What does the command Docker image LS display?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 5,
+          "_chapter_headline": "We can do Docker ps to show only running containers. So that's also important to understand"
+        },
+        {
+          "question": "How can you access the operating system inside a running BusyBox container?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 5,
+          "_chapter_headline": "We can do Docker ps to show only running containers. So that's also important to understand"
+        },
+        {
+          "question": "What is a Docker volume used for?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 6,
+          "_chapter_headline": "Volumes are what we use to have persistent storage in Docker"
+        },
+        {
+          "question": "How does Docker enable data to persist across container runs?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 6,
+          "_chapter_headline": "Volumes are what we use to have persistent storage in Docker"
+        },
+        {
+          "question": "What command creates a Docker volume named test volume?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 6,
+          "_chapter_headline": "Volumes are what we use to have persistent storage in Docker"
+        },
+        {
+          "question": "Why use a Docker volume for persistent storage instead of a container's writable layer?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 6,
+          "_chapter_headline": "Volumes are what we use to have persistent storage in Docker"
+        },
+        {
+          "question": "What is Docker not just about pulling images from Docker Hub?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 7,
+          "_chapter_headline": "This course is about writing Docker files and containerizing our own applications"
+        },
+        {
+          "question": "Besides using existing images, what does the course teach you to create?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 7,
+          "_chapter_headline": "This course is about writing Docker files and containerizing our own applications"
+        },
+        {
+          "question": "What environment variable can overwrite the default log file path?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 7,
+          "_chapter_headline": "This course is about writing Docker files and containerizing our own applications"
+        },
+        {
+          "question": "Why does the example use an environment variable to specify the log file path?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 7,
+          "_chapter_headline": "This course is about writing Docker files and containerizing our own applications"
+        },
+        {
+          "question": "What is Python based on?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 8,
+          "_chapter_headline": "Creating a Docker image requires defining several commands for a Docker file"
+        },
+        {
+          "question": "Which OS underlies the Python image used for the Ollama web UI?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 8,
+          "_chapter_headline": "Creating a Docker image requires defining several commands for a Docker file"
+        },
+        {
+          "question": "What command copies requirements.txt into the working directory /app?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 8,
+          "_chapter_headline": "Creating a Docker image requires defining several commands for a Docker file"
+        },
+        {
+          "question": "How does the layering approach facilitate incremental Docker image builds?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 8,
+          "_chapter_headline": "Creating a Docker image requires defining several commands for a Docker file"
+        },
+        {
+          "question": "What does Docker Compose allow multiple containers to do?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 9,
+          "_chapter_headline": "Using Docker Compose can easily make multiple containers work together as single application"
+        },
+        {
+          "question": "How can several containers be combined into one application using Docker Compose?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 9,
+          "_chapter_headline": "Using Docker Compose can easily make multiple containers work together as single application"
+        },
+        {
+          "question": "Which three services are used in the Docker Compose example?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 9,
+          "_chapter_headline": "Using Docker Compose can easily make multiple containers work together as single application"
+        },
+        {
+          "question": "Why is Docker Compose useful for multi‑container applications?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 9,
+          "_chapter_headline": "Using Docker Compose can easily make multiple containers work together as single application"
+        },
+        {
+          "question": "What two volumes are defined in the Docker Compose YAML file?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 10,
+          "_chapter_headline": "All we need to do is create Docker compose YAML file"
+        },
+        {
+          "question": "Which storage areas are specified as volumes in the compose file?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 10,
+          "_chapter_headline": "All we need to do is create Docker compose YAML file"
+        },
+        {
+          "question": "What command starts the containers defined in the compose file?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 10,
+          "_chapter_headline": "All we need to do is create Docker compose YAML file"
+        },
+        {
+          "question": "Why does publishing the Docker Compose file to Docker Hub allow the app to run without problems?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 10,
+          "_chapter_headline": "All we need to do is create Docker compose YAML file"
+        },
+        {
+          "question": "How is the video described?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 11,
+          "_chapter_headline": "This video covers Docker basics in as little time as possible"
+        },
+        {
+          "question": "What does the video recommend for those interested in Docker?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 11,
+          "_chapter_headline": "This video covers Docker basics in as little time as possible"
+        },
+        {
+          "question": "What is the name of the tool mentioned for defining multi‑container Docker applications?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 11,
+          "_chapter_headline": "This video covers Docker basics in as little time as possible"
+        },
+        {
+          "question": "Why does the video only briefly touch on a couple of concepts?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 11,
+          "_chapter_headline": "This video covers Docker basics in as little time as possible"
+        },
+        {
+          "question": "How do I deploy my Docker containers to Kubernetes?",
+          "scope": "off",
+          "kind": "near_miss"
+        },
+        {
+          "question": "What is the difference between Docker and Podman?",
+          "scope": "off",
+          "kind": "near_miss"
+        },
+        {
+          "question": "How do I write a CI pipeline for my containers?",
+          "scope": "off",
+          "kind": "near_miss"
+        },
+        {
+          "question": "How do I containerize a legacy .NET Framework app?",
+          "scope": "off",
+          "kind": "near_miss"
+        },
+        {
+          "question": "What's the best pizza topping?",
+          "scope": "off",
+          "kind": "off_topic"
+        },
+        {
+          "question": "Who won the 2022 football world cup?",
+          "scope": "off",
+          "kind": "off_topic"
+        },
+        {
+          "question": "How do I invest in index funds?",
+          "scope": "off",
+          "kind": "off_topic"
+        },
+        {
+          "question": "Explain the French Revolution.",
+          "scope": "off",
+          "kind": "off_topic"
+        }
+      ]
+    },
+    {
+      "video_id": "1KGWF704DUA",
+      "name": "Learn Python in 15 minutes",
+      "questions": [
+        {
+          "question": "What does the video demonstrate?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 0,
+          "_chapter_headline": "This video demonstrates how to learn Python in 15 minutes"
+        },
+        {
+          "question": "How long does the tutorial claim it takes to learn Python?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 0,
+          "_chapter_headline": "This video demonstrates how to learn Python in 15 minutes"
+        },
+        {
+          "question": "Which programming language is the focus of the video?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 0,
+          "_chapter_headline": "This video demonstrates how to learn Python in 15 minutes"
+        },
+        {
+          "question": "Why does the presenter encourage viewers to code along?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 0,
+          "_chapter_headline": "This video demonstrates how to learn Python in 15 minutes"
+        },
+        {
+          "question": "What does Python being dynamically typed allow us to do with variables?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 1,
+          "_chapter_headline": "Since Python is dynamically typed, we can save variables as different types"
+        },
+        {
+          "question": "How can a variable's type be changed in Python?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 1,
+          "_chapter_headline": "Since Python is dynamically typed, we can save variables as different types"
+        },
+        {
+          "question": "What does it mean that strings are immutable in Python?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 1,
+          "_chapter_headline": "Since Python is dynamically typed, we can save variables as different types"
+        },
+        {
+          "question": "Why does Python's dynamic typing let variables store different types?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 1,
+          "_chapter_headline": "Since Python is dynamically typed, we can save variables as different types"
+        },
+        {
+          "question": "What type is used for conditional control flow statements in Python?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 2,
+          "_chapter_headline": "Python has several types that can be used for conditional control flow statements"
+        },
+        {
+          "question": "Which data type forms the basis of Python's conditional statements?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 2,
+          "_chapter_headline": "Python has several types that can be used for conditional control flow statements"
+        },
+        {
+          "question": "What example float value is given for a decimal number in Python?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 2,
+          "_chapter_headline": "Python has several types that can be used for conditional control flow statements"
+        },
+        {
+          "question": "Why are indentations required to create a separate block of code in Python?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 2,
+          "_chapter_headline": "Python has several types that can be used for conditional control flow statements"
+        },
+        {
+          "question": "What notation accesses individual characters in a Python string?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 3,
+          "_chapter_headline": "Python has several data structures that can be accessed using bracket notation"
+        },
+        {
+          "question": "How can you obtain one character from a Python string?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 3,
+          "_chapter_headline": "Python has several data structures that can be accessed using bracket notation"
+        },
+        {
+          "question": "Which Python data structure is referred to as a list and accessed with bracket notation?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 3,
+          "_chapter_headline": "Python has several data structures that can be accessed using bracket notation"
+        },
+        {
+          "question": "How does bracket notation provide access to elements in Python sequences?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 3,
+          "_chapter_headline": "Python has several data structures that can be accessed using bracket notation"
+        },
+        {
+          "question": "What is one of the last main data structures in Python?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 4,
+          "_chapter_headline": "One of the last main data structures in Python is a dictionary"
+        },
+        {
+          "question": "Which Python structure stores data as key-value pairs?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 4,
+          "_chapter_headline": "One of the last main data structures in Python is a dictionary"
+        },
+        {
+          "question": "What Python data structure is similar to a set but uses key value pairs?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 4,
+          "_chapter_headline": "One of the last main data structures in Python is a dictionary"
+        },
+        {
+          "question": "How does a dictionary differ from a set in Python?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 4,
+          "_chapter_headline": "One of the last main data structures in Python is a dictionary"
+        },
+        {
+          "question": "What is a way of creating objects in Python?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 5,
+          "_chapter_headline": "Python classes are a way of creating objects. And this is great for storing information"
+        },
+        {
+          "question": "How can you create objects in Python?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 5,
+          "_chapter_headline": "Python classes are a way of creating objects. And this is great for storing information"
+        },
+        {
+          "question": "What are Python classes a way of creating?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 5,
+          "_chapter_headline": "Python classes are a way of creating objects. And this is great for storing information"
+        },
+        {
+          "question": "Why are classes useful for storing information?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 5,
+          "_chapter_headline": "Python classes are a way of creating objects. And this is great for storing information"
+        },
+        {
+          "question": "What is the name of the upcoming series?",
+          "scope": "in",
+          "kind": "factoid",
+          "chapter_index": 6,
+          "_chapter_headline": "Stay tuned for the Python series. It will be covering each of these topics"
+        },
+        {
+          "question": "How often will new episodes of the Python series be released?",
+          "scope": "in",
+          "kind": "paraphrase",
+          "chapter_index": 6,
+          "_chapter_headline": "Stay tuned for the Python series. It will be covering each of these topics"
+        },
+        {
+          "question": "What topics will the Python series cover?",
+          "scope": "in",
+          "kind": "exact_term",
+          "chapter_index": 6,
+          "_chapter_headline": "Stay tuned for the Python series. It will be covering each of these topics"
+        },
+        {
+          "question": "Why is the goal of the Python series to build a full stack application?",
+          "scope": "in",
+          "kind": "conceptual",
+          "chapter_index": 6,
+          "_chapter_headline": "Stay tuned for the Python series. It will be covering each of these topics"
+        },
+        {
+          "question": "How do I use type hints in Python?",
+          "scope": "off",
+          "kind": "near_miss"
+        },
+        {
+          "question": "How do I publish my package to PyPI?",
+          "scope": "off",
+          "kind": "near_miss"
+        },
+        {
+          "question": "What is list comprehension syntax?",
+          "scope": "off",
+          "kind": "near_miss"
+        },
+        {
+          "question": "How do I connect Python to a Postgres database?",
+          "scope": "off",
+          "kind": "off_topic"
+        },
+        {
+          "question": "What is the capital of Japan?",
+          "scope": "off",
+          "kind": "off_topic"
+        },
+        {
+          "question": "Recommend me a good laptop for programming.",
+          "scope": "off",
+          "kind": "off_topic"
+        }
+      ]
+    }
+  ]
+}

@@ -8,6 +8,7 @@ VocalScout turns any YouTube video into an AI tutor: paste a link, it downloads 
 
 - 🔗 **Any YouTube URL** — `watch`, `youtu.be`, `/shorts/`, `/live/`, `/embed/`, or a raw video ID
 - 🏗️ **Live build progress** — download → transcribe → chunk → embed, with per-stage status
+- 📜 **Clickable transcript** — searchable transcript panel beside the player, grouped by chapter, with the current chunk highlighted and every line jumping the video to its timestamp
 - 💬 **Grounded answers** — the AI answers only from the video's transcript, with a supporting quote
 - 🧵 **Chat with follow-ups** — the conversation carries context, so you can just ask *"why?"* or *"go deeper"* after any answer
 - ⏱️ **Jump to the answer** — one click seeks the player to the answer's timestamp
@@ -27,11 +28,12 @@ YouTube URL
    ▼
 ┌──────────┐   ┌──────────────┐   ┌──────────┐   ┌──────────┐
 │ yt-dlp   │──▶│ AssemblyAI   │──▶│ Chunker  │──▶│ NVIDIA   │
-│ download │   │ transcribe   │   │ 45s win, │   │ embed +  │
-│ audio    │   │ (word times) │   │ 5s overlap│  │ ChromaDB │
+│ download │   │ transcribe   │   │ chapters │   │ embed +  │
+│ audio    │   │ + chapters   │   │ + topics │   │ ChromaDB │
 └──────────┘   └──────────────┘   └──────────┘   └──────────┘
                                                     │
-   Question ──▶ embed ──▶ top-3 chunks ──▶ Nemotron LLM ──▶ answer + timestamp
+   Question ──▶ hybrid search ──▶ top-3 chunks ──▶ Nemotron LLM ──▶ answer + timestamp
+              (dense + BM25 RRF; optional LLM rerank, off by default)
 ```
 
 **Stack:** FastAPI · ChromaDB · yt-dlp · AssemblyAI · NVIDIA NIM (Nemotron) · React 18 · Vite · Tailwind CSS · Framer Motion · react-youtube
@@ -50,10 +52,11 @@ Backend/
   services/
     video_manager.py       # URL parsing, collection management
     transcriber.py         # AssemblyAI upload + polling
-    chunker.py             # Word-level transcript → 45s overlapping chunks
+    chunker.py             # Transcript → chapters, then semantic topic chunks
     embeddings.py          # NVIDIA embedding API
     vector_store.py        # Chroma per-video collections
-    retriever.py           # Top-k chunk search
+    retriever.py           # Hybrid search: dense + BM25 (RRF), optional LLM rerank
+    reranker.py            # LLM relevance judge over the fused candidates
     chat.py                # NVIDIA chat completions (with retries)
   orchestrators/
     ingestion.py           # 5-step pipeline with error → status=error
@@ -62,9 +65,54 @@ Frontend/
   src/
     App.jsx                # State + wiring (build flow, polling, ask, seek)
     api.js                 # Typed API client
-    components/            # VideoLoader, VideoPlayer, SearchBox, AnswerCard, ...
+    components/            # VideoPlayer, TranscriptPanel, SearchBox, AnswerCard, ...
     utils/                 # formatTime, getYouTubeId
+
+Backend/eval/
+  generate_golden.py       # Regenerate eval questions from AssemblyAI chapters
+  golden_set.json          # Reviewed eval questions (ground truth = chapter tags)
+  run_eval.py              # 4 retrieval configs + guard threshold sweep
 ```
+
+## 📊 Evaluating retrieval
+
+The pipeline ships with its own eval harness — it scores the REAL retrieval code
+(no mocks) against a hand-reviewed question set:
+
+```bash
+cd Backend && python eval/run_eval.py          # all videos, all configs
+python eval/run_eval.py --video <id>           # one video (e.g. after re-ingesting it)
+python eval/run_eval.py --skip-judge           # drop the judge configs (~10–22s/question saved)
+```
+
+Five configs (dense / BM25 / fusion / LLM-judge ×2) over ~79 questions report
+Hit@3, MRR, Recall@20 and latency; a threshold sweep over the same questions'
+cosine scores recommends `OFF_TOPIC_THRESHOLD`. Per-question rows land in
+`eval/report.json`. Requires `NVIDIA_API_KEY` (embeddings + judge); the full
+run takes ~25–30 minutes with the judge configs, ~3 minutes with
+`--skip-judge`. To regenerate the question set: edit
+`eval/generate_golden.py` and run it, then review the output as
+`eval/golden_set.json`.
+
+Latest results (2026-10-06 full rerun; 43 in-scope Docker questions):
+
+| config | Hit@3 | MRR | Recall@20 | avg ms* |
+|---|---|---|---|---|
+| dense | 93.0% | 0.875 | 97.7% | ~660 |
+| bm25 | 83.7% | 0.716 | 97.7% | ~650 |
+| **fusion** | **95.3%** | 0.855 | 97.7% | ~660 |
+| LLM judge (r1 / r2) | 95.3% / 93.0% | 0.877 / 0.868 | 97.7% | ~10,700 / ~21,700 |
+
+\* Every config pays the same ~650ms query-embedding API call; BM25 itself is
+sub-millisecond. The dense / BM25 / fusion metrics reproduced the previous run
+exactly. The judge tied fusion's Hit@3 at best while costing ~10–22s more per
+question — and agreed with its own repeat only 21% of the time (55% on the
+Python video) — so **reranking ships off by default** (`RERANK_ENABLED=1`
+re-enables it). On the re-ingested Python video, dense and fusion both hit
+100% Hit@3 (BM25 90.9%). The guard sweep reconfirms
+`OFF_TOPIC_THRESHOLD = 0.35`: 95% of in-scope questions score above it and 64%
+of off-topic ones fall below it.
+
 
 ## 🚀 Getting started
 
@@ -137,8 +185,10 @@ VITE_API_URL=https://your-backend-url
 | Method | Endpoint | Body / Params | Description |
 |---|---|---|---|
 | `POST` | `/ask` | `{"question": "...", "video_id": "..." (optional), "history": [{"role": "user"\|"assistant", "content": "..."}, ...] (optional)}` | Ask the active (or given) video a question. Quiz intent detected automatically; `history` enables follow-up questions. Responses carry a `type` field: `answer` (transcript-grounded, has timestamp + quote), `clarification` (the tutor needs more detail), `notice` (e.g. video still processing), or `error`. |
+| `POST` | `/ask-stream` | Same body as `/ask` | Same answer, streamed as Server-Sent Events: `meta` (timestamp + quote) → `token` deltas → `suggestions`/`quiz`, always ended by `done`. Both endpoints share the same routing, retrieval and prompts. |
 | `POST` | `/process-video` | `{"url": "https://youtu.be/..."}` | Start building a tutor for a video (background). Returns `processing` or `cached`. |
 | `GET` | `/video-status/{video_id}` | — | Pipeline status: `queued / downloading / transcribing / chunking / embedding / ready / error` (+ `detail` on error) |
+| `GET` | `/transcript/{video_id}` | — | Timestamped transcript chunks (`chunk_id`, `text`, `start_ms`, `end_ms`, `chapter`) for the clickable transcript panel |
 | `GET` | `/current-video` | — | Server's active video |
 | `GET` | `/` | — | Health check |
 
@@ -146,15 +196,17 @@ VITE_API_URL=https://your-backend-url
 
 - **Single-user session** — the "active video" is server-global; fine for local use, not for many simultaneous users. Per-request `video_id` support in `/ask` mitigates this.
 - **In-memory status** — processing state resets when the backend restarts (restart mid-build = re-paste the URL).
-- **No streaming** — answers arrive after several seconds; SSE streaming is a planned improvement.
+- **Quizzes aren't streamed** — a quiz parses into an interactive card, so `/ask-stream` builds it in one piece and sends it whole.
+- **Reranking is an LLM judge, off by default** — NVIDIA's hosted catalog no longer serves a cross-encoder reranker, so reranking means the chat model reordering the fused candidates. The eval measured it slightly *worse* than plain fusion at ~17s per question, so the live path skips it; set `RERANK_ENABLED=1` to experiment.
+- **Chunks are fixed at ingestion** — chunking runs once per video. Videos ingested before the chapter/semantic chunker shipped keep their old 45s windows until they're processed again.
 - **English-first** — transcription auto-detects language, but prompts/UX are English-centric.
 
 ## 🗺️ Roadmap ideas
 
-- [ ] Streaming answers (SSE)
+- [x] ~~Streaming answers (SSE)~~ — shipped: `POST /ask-stream` streams the answer token by token
 - [ ] Persistent job queue (e.g. Celery/Redis) + user sessions
 - [x] ~~Chat history & follow-up questions~~ — shipped: the frontend sends recent turns with each `/ask`
-- [ ] Chapter-aware chunking using AssemblyAI `auto_chapters`
+- [x] ~~Chapter-aware chunking using AssemblyAI `auto_chapters`~~ — shipped: chapters are hard boundaries, sentence-level embeddings split inside them
 - [ ] Deployment guide (Docker, Render/Railway + Vercel)
 
 ## 🤝 Contributing

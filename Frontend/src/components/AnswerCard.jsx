@@ -63,6 +63,7 @@ export default function AnswerCard({
   quote,
   timestamp,
   type = "answer",
+  streaming = false,
   onJump,
   onRegenerate,
 }) {
@@ -147,7 +148,7 @@ export default function AnswerCard({
 
       {/* message body — the model returns markdown (lists, tables for
           compare mode, bold); render it instead of showing raw pipes. */}
-      <MarkdownContent text={answer} />
+      <MarkdownContent text={answer} streaming={streaming} />
 
       {/* supporting quote callout */}
       {quote && (
@@ -191,10 +192,17 @@ export default function AnswerCard({
  * card, so we only add structure (lists, tables, code) that plain text can't
  * express. remark-gfm enables the pipe tables the compare mode relies on.
  */
-export function MarkdownContent({ text }) {
+export function MarkdownContent({ text, streaming = false }) {
   return (
     <div className="mt-4 text-[15px] leading-relaxed text-slate-700 dark:text-slate-300 [&_a]:text-primary [&_a]:underline [&_code]:rounded [&_code]:bg-slate-100 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[13px] dark:[&_code]:bg-slate-800 [&_li]:ml-4 [&_li]:list-disc [&_ol_li]:list-decimal [&_strong]:font-semibold [&_strong]:text-slate-900 dark:[&_strong]:text-white [&_table]:mt-3 [&_table]:w-full [&_table]:border-collapse [&_table]:text-sm [&_td]:border [&_td]:border-slate-200 [&_td]:px-2.5 [&_td]:py-1.5 [&_td]:align-top dark:[&_td]:border-white/10 [&_th]:border [&_th]:border-slate-200 [&_th]:bg-slate-50 [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold dark:[&_th]:border-white/10 dark:[&_th]:bg-slate-800/60">
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{text}</ReactMarkdown>
+      {/* blinking caret shown only while the answer is still being written */}
+      {streaming && (
+        <span
+          aria-hidden="true"
+          className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-primary align-[-2px]"
+        />
+      )}
     </div>
   );
 }

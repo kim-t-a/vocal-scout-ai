@@ -19,5 +19,8 @@ Backend/chunks/
 Backend/transcripts/
 videos/
 
+# --- Eval run logs ---
+Backend/eval/run_output.log
+
 # --- Freebuff local state ---
 .freebuff/

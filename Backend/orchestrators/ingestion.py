@@ -61,7 +61,10 @@ class IngestionOrchestrator:
         processing.video_status[video_id] = {"status": "chunking"}
         print("Step 3/5: Chunking...")
         chunk_result = chunk_transcript(transcript["transcript_path"], video_id)
-        print(f"Created {len(chunk_result['chunks'])} chunks.")
+        print(
+            f"Created {len(chunk_result['chunks'])} chunks "
+            f"({chunk_result['strategy']} chunking)."
+        )
 
         # Step 4
         processing.video_status[video_id] = {"status": "embedding"}
@@ -89,4 +92,5 @@ class IngestionOrchestrator:
             "collection": vector_result["collection"],
             "stored_chunks": vector_result["stored_chunks"],
             "chunks_created": len(chunk_result["chunks"]),
+            "chunking_strategy": chunk_result["strategy"],
         }

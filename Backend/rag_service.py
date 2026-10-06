@@ -3,7 +3,7 @@ import re
 
 from services.embeddings import get_embedding
 from services.retriever import search_chunks
-from services.chat import generate_answer
+from services.chat import generate_answer, stream_answer
 import session
 
 
@@ -122,22 +122,49 @@ def build_history_block(history: list[dict] | None) -> str:
     return "Earlier in this conversation (newest last):\n" + "\n".join(reversed(lines))
 
 
-def ask(question: str, plan=None, video_id: str | None = None, history: list[dict] | None = None):
+def _notice(answer: str):
+    """A response that never reached the model (no video, off-topic, still building)."""
+
+    return {
+        "type": "notice",
+        "answer": answer,
+        "timestamp": 0,
+        "quote": ""
+    }
+
+
+def _busy_response():
+    """The model produced nothing — rendered like any other transient failure."""
+
+    return {
+        "type": "error",
+        "answer": "The AI tutor is temporarily busy. Please try again in a moment.",
+        "timestamp": 0,
+        "quote": ""
+    }
+
+
+def _prepare(question: str, plan=None, video_id: str | None = None, history: list[dict] | None = None):
+    """
+    Shared front half of `ask` and `ask_stream`: resolve the video, retrieve the
+    transcript context and build the model prompt.
+
+    Returns (early_response, retrieved, prompt). `early_response` is a finished
+    response dict when the question must not reach the model (no video selected,
+    or the topic isn't in the transcript); otherwise it is None.
+    """
+
     if video_id is None:
         video_id = session.ACTIVE_VIDEO_ID
 
     if video_id is None:
-        return {
-            "type": "notice",
-            "answer": "Please process a YouTube video first.",
-            "timestamp": 0,
-            "quote": ""
-        }
+        return _notice("Please process a YouTube video first."), None, None
 
     query_embedding = get_embedding(question)
 
     retrieved = search_chunks(
         query_embedding,
+        question,
         video_id
     )
 
@@ -146,30 +173,50 @@ def ask(question: str, plan=None, video_id: str | None = None, history: list[dic
     # legacy l2 collections — skip the check rather than guess.
     score = retrieved.get("score")
     if score is not None and score < OFF_TOPIC_THRESHOLD:
-        return {
-            "type": "notice",
-            "answer": (
-                "That doesn't seem to be covered in this video. "
-                "Try asking about something the video explains."
-            ),
-            "timestamp": 0,
-            "quote": ""
-        }
+        return _notice(
+            "That doesn't seem to be covered in this video. "
+            "Try asking about something the video explains."
+        ), None, None
 
     # Shape the answer with the planner's lesson plan when available
     style_instructions = ""
     if plan is not None:
         if plan.strategy == "quiz":
-            style_instructions = """
+            count = getattr(plan, "quiz_count", 3)
+            style_instructions = f"""
 Mode: QUIZ. Test the viewer on the transcript content.
 - Respond with ONLY a JSON array — no prose before or after, no markdown fences.
-- Write exactly 3 multiple-choice questions based ONLY on the transcript below.
+- Write exactly {count} multiple-choice questions based ONLY on the transcript below.
 - Exact JSON shape:
-  [{"question": "...", "options": ["...", "...", "...", "..."], "answer_index": 0}]
+  [{{"question": "...", "options": ["...", "...", "...", "..."], "answer_index": 0}}]
 - "answer_index" is the 0-based index of the correct option.
 - Exactly 4 options per question; exactly one correct.
+
+What makes a question RELEVANT (quiz the CONTENT, not the video itself):
+- Test the subject matter the video teaches — its concepts, how they work,
+  when to use them, and why they matter.
+- FORBIDDEN — questions about the video or creator as an artifact: what the
+  creator suggests doing next, what viewers should watch after this, how the
+  course/video is structured, what the speaker said about learning itself,
+  promotional or meta-commentary. If a question could be answered WITHOUT
+  understanding the subject matter, it is irrelevant — drop it.
+- No trivia about exact wording someone said; no fill-in-the-blank of a
+  sentence from the transcript.
+
+How to write the questions (this is what makes them feel natural):
+- Sound like a friendly tutor quizzing a friend — never like an exam paper.
+  FORBIDDEN phrases: "as stated in the video", "according to the transcript",
+  "in this lesson", "the speaker mentions".
+- Mix up the styles across the {count} questions, for example:
+  one direct concept check ("What happens to a tuple once it's created?"),
+  one scenario ("Which would you reach for when the data must not change?"),
+  one practical ("Why might you pick one over the other in real code?").
+- Keep each question under 20 words and self-contained — the reader sees only
+  the question, not the transcript.
 - Distractors must be plausible but clearly wrong to someone who watched.
-- Do not answer the user's question directly; quiz them on the topic they asked about."""
+- If the request is a general "quiz me" with no specific topic, quiz on the
+  most important ideas across the transcript. Otherwise quiz on the topic
+  the user asked about, and never answer their question directly."""
         else:
             style_instructions = "\nStructure your answer by covering, in order: " + \
                 ", ".join(plan.order) + "."
@@ -187,15 +234,21 @@ Question:
 {style_instructions}
 """
 
+    return None, retrieved, prompt
+
+
+def ask(question: str, plan=None, video_id: str | None = None, history: list[dict] | None = None):
+    """Whole answer in one response — used by /ask and by quiz mode."""
+
+    early, retrieved, prompt = _prepare(question, plan, video_id, history)
+
+    if early is not None:
+        return early
+
     answer = generate_answer(prompt)
 
     if answer is None:
-        return {
-            "type": "error",
-            "answer": "The AI tutor is temporarily busy. Please try again in a moment.",
-            "timestamp": 0,
-            "quote": ""
-        }
+        return _busy_response()
 
     # Quiz mode: the model returns strict JSON which we validate and hand to
     # the frontend as structured multiple-choice questions. If parsing fails
@@ -216,5 +269,80 @@ Question:
         "answer": answer,
         "timestamp": retrieved["timestamp"],           # Milliseconds (frontend expects ms)
         "quote": retrieved["quote"],
+        "suggestions": build_suggestions(answer),
+    }
+
+
+def ask_stream(question: str, plan=None, video_id: str | None = None, history: list[dict] | None = None):
+    """
+    Same answer as `ask`, but emitted while the model is still writing it.
+
+    Yields dicts shaped like the /ask response. The frontend appends `token`
+    text to the growing message and treats any other type as final:
+      {"type": "meta", ...}        sent first, before any text
+      {"type": "token", ...}       repeated as the answer arrives
+      {"type": "suggestions", ...} follow-up chips once it's finished
+      {"type": "quiz"|"notice"|"error", ...}  single-shot responses
+    """
+
+    early, retrieved, prompt = _prepare(question, plan, video_id, history)
+
+    if early is not None:
+        yield early
+        return
+
+    yield {
+        "type": "meta",
+        "timestamp": retrieved["timestamp"],
+        "quote": retrieved["quote"],
+    }
+
+    # A quiz renders as an interactive card, not as prose — streaming half a
+    # JSON array at the viewer would only flicker. Build it in one shot.
+    if plan is not None and plan.strategy == "quiz":
+        yield from _stream_quiz(prompt)
+        return
+
+    collected = []
+
+    for delta in stream_answer(prompt):
+        collected.append(delta)
+        yield {"type": "token", "text": delta}
+
+    answer = "".join(collected).strip()
+
+    if not answer:
+        yield _busy_response()
+        return
+
+    yield {
+        "type": "suggestions",
+        "suggestions": build_suggestions(answer),
+    }
+
+
+def _stream_quiz(prompt: str):
+    """Quiz questions can't be shown until the JSON parses, so buffer them."""
+
+    answer = generate_answer(prompt)
+
+    if answer is None:
+        yield _busy_response()
+        return
+
+    # Unparseable JSON falls back to the raw text so the viewer isn't stuck.
+    questions = parse_quiz_json(answer)
+
+    if questions:
+        yield {
+            "type": "quiz",
+            "questions": questions,
+            "answer": answer,
+        }
+        return
+
+    yield {"type": "token", "text": answer}
+    yield {
+        "type": "suggestions",
         "suggestions": build_suggestions(answer),
     }

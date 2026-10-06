@@ -9,6 +9,7 @@ import YouTube from "react-youtube";
  * into react-youtube internals:
  *   ref.current.isReady()           -> bool
  *   ref.current.seekTo(seconds)     -> bool (false = queued for later)
+ *   ref.current.getCurrentTime()    -> seconds | null (transcript highlight)
  *
  * The player instance is captured from onReady (the documented way to get
  * the YouTubePlayer). If a seek is requested while the player is missing or
@@ -30,6 +31,16 @@ const VideoPlayer = forwardRef(function VideoPlayer({ videoId }, ref) {
     ref,
     () => ({
       isReady: () => Boolean(playerRef.current),
+      // Current playback position in seconds, or null when the player isn't
+      // alive — the transcript panel polls this to highlight the active chunk.
+      getCurrentTime: () => {
+        try {
+          const t = playerRef.current?.getCurrentTime?.();
+          return typeof t === "number" ? t : null;
+        } catch {
+          return null;
+        }
+      },
       seekTo: (seconds) => {
         const player = playerRef.current;
         if (player && typeof player.seekTo === "function") {

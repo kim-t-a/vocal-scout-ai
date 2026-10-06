@@ -11,6 +11,9 @@ def store_chunks(chunks_path: str, video_id: str):
     """
     Create embeddings for every chunk and store them in
     a Chroma collection dedicated to this video.
+
+    Chunk metadata carries the chapter each chunk came from, so retrieval can
+    report the topic a citation belongs to without a second lookup.
     """
 
     collection_name = f"video_{video_id}"
@@ -37,7 +40,11 @@ def store_chunks(chunks_path: str, video_id: str):
             metadatas=[{
                 "start_ms": chunk["start_ms"],
                 "end_ms": chunk["end_ms"],
-                "source_lang": chunk["source_lang"]
+                "source_lang": chunk["source_lang"],
+                # Chapter the chunk came from ("" when the transcript had no
+                # chapters). Chroma metadata only holds flat scalars — no None.
+                "chapter": chunk.get("chapter", ""),
+                "chapter_index": chunk.get("chapter_index", -1)
             }]
         )
 

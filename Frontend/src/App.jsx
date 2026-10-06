@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { askQuestion, processVideo, getVideoStatus, getCurrentVideo } from "./api";
+import { askQuestionStream, processVideo, getVideoStatus, getCurrentVideo } from "./api";
 import { getYouTubeId } from "./utils/getYouTubeId";
 import { formatTime } from "./utils/formatTime";
 import AuroraBackground from "./components/AuroraBackground";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import VideoPlayer from "./components/VideoPlayer";
+import TranscriptPanel from "./components/TranscriptPanel";
 import VideoLoader from "./components/VideoLoader";
 import SearchBox from "./components/SearchBox";
 import LoadingCard from "./components/LoadingCard";
@@ -37,6 +38,8 @@ export default function App() {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([]); // { id, role: "user" | "assistant", ... }
   const [loading, setLoading] = useState(false);
+  // id of the assistant message whose tokens are still arriving (null = idle)
+  const [streamingId, setStreamingId] = useState(null);
   const [lastQuestion, setLastQuestion] = useState("");
   const [toast, setToast] = useState(null);
   const [videoId, setVideoId] = useState(() => getYouTubeId(DEFAULT_VIDEO_URL));
@@ -104,6 +107,19 @@ export default function App() {
     [showToast]
   );
 
+  // Current playback position for the transcript panel's active-chunk
+  // highlight. Stable callback — the panel polls it on its own interval.
+  const getPlayerTime = useCallback(() => {
+    const player = playerRef.current;
+    if (!player?.isReady?.()) return null;
+    try {
+      const seconds = player.getCurrentTime();
+      return typeof seconds === "number" ? seconds : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   // ---- build tutor from URL ---------------------------------------------
   const buildTutor = useCallback(
     async ({ url, setStage, onError, onDone }) => {
@@ -166,7 +182,7 @@ export default function App() {
 
   // ---- ask ---------------------------------------------------------------
   const submitQuestion = useCallback(
-    async (rawQuestion) => {
+    async (rawQuestion, quizCount = null) => {
       const trimmed = rawQuestion.trim();
       if (!trimmed) {
         showToast("error", "Please type a question first.");
@@ -182,37 +198,97 @@ export default function App() {
         { id: Date.now(), role: "user", content: trimmed },
       ]);
 
+      // The reply card is added as soon as the backend sends `meta`, then
+      // grown one `token` event at a time, so the answer types itself out.
+      const placeholderId = Date.now() + 1;
+      let placeholderAdded = false;
+
+      const patchPlaceholder = (fields) =>
+        setMessages((prev) =>
+          prev.map((m) => (m.id === placeholderId ? { ...m, ...fields } : m))
+        );
+
+      const handleEvent = (event) => {
+        if (event.type === "meta") {
+          placeholderAdded = true;
+          setStreamingId(placeholderId);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: placeholderId,
+              role: "assistant",
+              type: "answer",
+              answer: "",
+              timestamp: event.timestamp ?? 0,
+              quote: event.quote ?? "",
+            },
+          ]);
+          return;
+        }
+
+        if (event.type === "token") {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === placeholderId
+                ? { ...m, answer: (m.answer || "") + (event.text || "") }
+                : m
+            )
+          );
+          return;
+        }
+
+        if (event.type === "suggestions") {
+          patchPlaceholder({ suggestions: event.suggestions });
+          return;
+        }
+
+        if (event.type === "done") return;
+
+        // quiz / notice / clarification / error are complete messages. Only
+        // merge the fields they actually carry — quote and timestamp came
+        // with `meta` (or aren't meaningful for a notice).
+        const fields = {
+          type: event.type || "answer",
+          answer: event.answer ?? "",
+        };
+        if (event.quote !== undefined) fields.quote = event.quote;
+        if (event.timestamp !== undefined) fields.timestamp = event.timestamp;
+        if (event.questions) fields.questions = event.questions;
+
+        if (placeholderAdded) {
+          patchPlaceholder(fields);
+        } else {
+          placeholderAdded = true;
+          setMessages((prev) => [
+            ...prev,
+            { id: placeholderId, role: "assistant", quote: "", timestamp: 0, ...fields },
+          ]);
+        }
+
+        // The tutor asked the user something — put the cursor in the box.
+        if (fields.type === "clarification") searchRef.current?.focus();
+      };
+
       try {
         // Send the last few exchanges so the tutor understands follow-ups.
         const history = messages.slice(-MAX_HISTORY).map(({ role, content, answer }) => ({
           role,
           content: role === "assistant" ? answer : content,
         }));
-        const data = await askQuestion(trimmed, videoId, history);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            role: "assistant",
-            type: data.type || "answer",
-            answer: data.answer,
-            quote: data.quote,
-            timestamp: data.timestamp,
-            questions: data.questions, // quiz mode only
-            suggestions: data.suggestions, // follow-up chips (answer mode)
-          },
-        ]);
-        // The tutor asked the user something — put the cursor in the box.
-        if (data.type === "clarification") searchRef.current?.focus();
+
+        await askQuestionStream(trimmed, videoId, history, quizCount, handleEvent);
+
+        if (!placeholderAdded) {
+          showToast("error", "The tutor sent back an empty answer. Please try again.");
+        }
       } catch (err) {
-        if (err?.code === "ECONNABORTED") {
-          showToast("error", "The request timed out. Try a shorter question.");
-        } else if (err?.response) {
-          showToast("error", `Backend error (${err.response.status}). Check the server logs.`);
+        if (err?.status) {
+          showToast("error", `Backend error (${err.status}). Check the server logs.`);
         } else {
           showToast("error", "Can't reach the backend. Is it running on http://127.0.0.1:8000 ?");
         }
       } finally {
+        setStreamingId(null);
         setLoading(false);
       }
     },
@@ -261,7 +337,18 @@ export default function App() {
         <Hero onCtaClick={() => searchRef.current?.focus()} />
 
         <div id="video-section" className="scroll-mt-20">
-          <VideoPlayer ref={playerRef} videoId={videoId} />
+          <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 sm:px-6 lg:flex-row lg:items-start">
+            <div className="min-w-0 flex-1">
+              <VideoPlayer ref={playerRef} videoId={videoId} />
+            </div>
+            <div className="w-full shrink-0 lg:w-[360px]">
+              <TranscriptPanel
+                videoId={videoId}
+                onSeek={seekTo}
+                getTime={getPlayerTime}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="mt-8 sm:mt-10">
@@ -274,6 +361,7 @@ export default function App() {
             value={question}
             onChange={setQuestion}
             onSubmit={submitQuestion}
+            onQuiz={(count) => submitQuestion("quiz me on this video", count)}
             loading={loading}
           />
         </div>
@@ -309,6 +397,7 @@ export default function App() {
                 answer={message.answer}
                 quote={message.quote}
                 timestamp={message.timestamp}
+                streaming={message.id === streamingId}
                 onJump={seekTo}
                 onRegenerate={regenerate}
               />
@@ -326,7 +415,9 @@ export default function App() {
               />
             )}
 
-          {loading && <LoadingCard />}
+          {/* Once the first tokens land the growing answer card replaces the
+              skeleton, so the wait is spent reading instead of spinning. */}
+          {loading && !streamingId && <LoadingCard />}
 
           {!loading && !hasMessages && (
             <EmptyState
